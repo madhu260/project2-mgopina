@@ -14,30 +14,53 @@ library(tidyverse)
 superstore <- read_excel("data/us_superstore.xls")
 
 
-# Define UI for application that draws a histogram
+#=================== UI ===================
 ui <- fluidPage(
 
     # Application title
     titlePanel("Superstore Data"),
 
-    # Sidebar with a slider input for number of bins 
     sidebarLayout(
         sidebarPanel(
             sliderInput("bins",
                         "Number of bins:",
                         min = 1,
                         max = 50,
-                        value = 30)
+                        value = 30
+                        )
         ),
 
-        # Show a plot of the generated distribution
         mainPanel(
-           plotOutput("distPlot")
+          tabsetPanel(
+            id = "main_tabs",
+            
+              tabPanel("About",
+                h3("Purpose"),
+                p("words"),
+                br(),
+                h3("Data and Source"),
+                p("words"),
+                br(),
+                h3("Functionality"),
+                p("purpose of the sidebar and each tab")
+              ),
+            
+            tabPanel("Data Download", 
+                     p("display the data")
+                     ),
+            
+            tabPanel("Data Exploration", 
+                     p("EDA work"),
+                     
+                     plotOutput("distPlot")
+                     )
+          )
+           
         )
     )
 )
 
-# Define server logic required to draw a histogram
+#================= Server =================
 server <- function(input, output) {
 
     output$distPlot <- renderPlot({
