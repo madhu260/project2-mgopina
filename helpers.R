@@ -7,27 +7,22 @@ library(janitor)
 superstore <- read_excel("data/us_superstore.xls")
 glimpse(superstore)
 
-#Row ID                 int
-#Order ID               chr
-#Order Date             dttm
-#Ship Date              dttm
-#Ship Mode              chr (factor)
+#Row ID                 int                     #Segment                chr (factor)
+#Order ID               chr                     #Ship Date              dttm
+#Order Date             dttm                    #Ship Mode              chr (factor)
+
 #Customer ID            chr
 #Customer Name          chr
-#Segment                chr (factor)
-#Country                chr (only US, remove)
-#City                   chr
-#State                  chr
-#Postal Code            int
+
+#Country                chr (removed)           #Product ID             chr
+#City                   chr                     #Category               chr (factor)
+#State                  chr                     #Sub-Category           chr (factor)
+#Postal Code            int                     #Product Name           chr
 #Region                 chr (factor)
-#Product ID             chr
-#Category               chr (factor)
-#Sub-Category           chr (factor)
-#Product Name           chr
-#Sales                  dbl
-#Quantity               int
-#Discount               dbl
-#Profit                 dbl
+
+#Sales                  dbl                     #Discount               dbl
+#Quantity               int                     #Profit                 dbl
+
 
 
 superstore <- superstore |>
@@ -59,3 +54,13 @@ superstore <- superstore |>
 cat_var <- c("ship_mode", "segment", "region", "category", "sub_category")
 
 num_var <- c("sales", "quantity", "discount", "profit")
+
+apply_filter <- function(data, var, level) {
+  if (level == "All") {
+    return(data)
+  }
+  
+  data |>
+    filter(.data[[var]] == level)
+}
+
