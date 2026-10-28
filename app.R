@@ -44,29 +44,72 @@ ui <- fluidPage(
         max = 17,
         value = 25
       ),
-      
       actionButton("apply", "Apply")
     ),
     mainPanel(tabsetPanel(
       id = "main_tabs",
+
+      # ------------------------ About ------------------------
+
       tabPanel(
         "About",
         h3("Purpose"),
-        p("words"),
+        p(
+          "The purpose of this app is to help users understand online sales, in an
+          easy and interactive manner, by using data from a US retail superstore.",
+          "You can narrow the dataset easily using filters, download that subset, or even create
+          specific summary statistics and visuals as a report for that subset.",
+          "By allowing users to customize their analysis, this app makes it easier to",
+          "identify trends, compare product categories, and explore factors associated with",
+          "profitability, helping users gain insights into the store's overall business performance"
+        ),
         br(),
         h3("Data and Source"),
-        p("words"),
-        br(),
-        h3("Functionality"),
-        p("purpose of the sidebar and each tab")
-      ),
-      tabPanel("Data Download", p("display the data")),
-      tabPanel(
-        "Data Exploration",
-        p("EDA work"),
-        plotOutput("histogram"),
-        plotOutput("barGraph"),
-        plotOutput("bumpPlot")
+        p(
+          "The data are order-line records from a superstore. Each row is one",
+          "product on one order, with details about the customer, the location,",
+          "the product, and the sale (sales, quantity, discount, and profit).",
+          p(
+            "More information about the data: ",
+            tags$a(
+              href = "https://www.kaggle.com/datasets/juhi1994/superstore",
+              "Superstore dataset on Kaggle", target = "_blank"
+            )
+          ),
+          br(),
+          h3("Functionality"),
+          tags$li(
+            strong("Sidebar: "),
+            "Choose a region, segment, and product category, and optionally",
+            "pick up to two numeric variables to filter with a range slider.",
+            "Nothing changes until you press 'Apply Subset'."
+          ),
+          tags$li(
+            strong("Data Download: "),
+            "View the current subset as a table and save it as a CSV file."
+          ),
+          tags$li(
+            strong("Data Exploration: "),
+            "Use the 'Categorical Summaries' sub-tab for contingency tables",
+            "and bar charts, and the 'Numeric Summaries' sub-tab for summary",
+            "statistics and plots (boxplots, histograms, scatter plots, and",
+            "heatmaps) of the current subset."
+          )
+        ),
+
+        # ------------------------ Download ------------------------
+
+        tabPanel("Data Download", p("display the data")),
+
+        # ------------------------ EDA ------------------------
+
+        tabPanel(
+          "Data Exploration",
+          p("EDA work"),
+          plotOutput("histogram"),
+          plotOutput("barGraph"),
+          plotOutput("bumpPlot")
+        )
       )
     ))
   )
@@ -84,20 +127,19 @@ server <- function(input, output) {
         bins = input$bins,
         category = input$category
       )
-      
     },
     ignoreInit = TRUE
   )
   # ----------------------- Numerical Summaries -----------------------
-  
-  
+
+
   # ----------------------- Plots -----------------------
-  
-  #output$pieChart <- renderPlot({
-    
-  #})
-  
-  
+
+  # output$pieChart <- renderPlot({
+
+  # })
+
+
   output$histogram <- renderPlot({
     req(filtered())
     data <- filtered()$data
@@ -109,9 +151,8 @@ server <- function(input, output) {
         "No positive sales values available."
       )
     )
-    
-    plot_sales_histogram(filtered()$data, filtered()$bins)
 
+    plot_sales_histogram(filtered()$data, filtered()$bins)
   })
 
   output$barGraph <- renderPlot({
@@ -119,26 +160,26 @@ server <- function(input, output) {
     data <- filtered()$data
 
     validate(need(nrow(data) > 0, "No data available for this filter."))
-    
+
     plot_profit_by_subcategory(filtered()$data, filtered()$category)
-    
   })
-  
-  #output$boxPlot <- renderPlot({
-    
-  #})
+
+  # output$boxPlot <- renderPlot({
+
+  # })
 
   # output$facetWrap <- renderPlot({
-  #   
+  #
   # })
   # output$heatmap <- renderPlot({
-  #   
+  #
   # })
-  
+
   output$bumpPlot <- renderPlot({
     req(filtered())
     plot_profit_ranking(filtered()$data)
-  })}
+  })
+}
 
 # Run the application
 shinyApp(ui = ui, server = server)

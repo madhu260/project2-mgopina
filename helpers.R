@@ -70,11 +70,101 @@ apply_filter <- function(data, var, level) {
 
 # ----------------------- Contingency Tables -----------------------
 
+one_way_contingency <- function(data, cat_var) {
+  data |>
+    count(.data[[cat_var]], name = "Count", .drop = FALSE) |>
+    arrange(desc(Count))
+}
+
+
+two_way_contingency <- function(data, row_var, col_var) {
+  data |>
+    count(
+      .data[[row_var]],
+      .data[[col_var]],
+      name = "Count",
+      .drop = FALSE
+    ) |>
+    pivot_wider(
+      names_from = all_of(col_var),
+      values_from = Count,
+      values_fill = 0
+    )
+}
+
 # ----------------------- Numerical Summaries ----------------------
 
-# --------------------------- 0.Pie Chart  ----------------------------
+grouped_numerical_summary <- function(data, num_var, cat_var) {
+  data |>
+    group_by(.data[[cat_var]]) |>
+    summarise(
+      n = sum(!is.na(.data[[num_var]])),
+      mean = mean(.data[[num_var]], na.rm = TRUE),
+      median = median(.data[[num_var]], na.rm = TRUE),
+      sd = sd(.data[[num_var]], na.rm = TRUE),
+      min = min(.data[[num_var]], na.rm = TRUE),
+      max = max(.data[[num_var]], na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    mutate(
+      across(
+        c(mean, median, sd, min, max),
+        ~ ifelse(n == 0, NA_real_, .x)
+      )
+    )
+}
 
-# of all categories
+# --------------------------- 0. Pie Chart ----------------------------
+
+plot_category_pie <- function(data, selected_var = "category") {
+  
+  pie_data <- data |>
+    count(.data[[selected_var]], name = "count") |>
+    filter(count > 0) |>
+    mutate(
+      percentage = count / sum(count),
+      label = paste0(
+        round(percentage * 100, 1),
+        "%"
+      )
+    )
+  
+  ggplot(
+    pie_data,
+    aes(
+      x = "",
+      y = count,
+      fill = .data[[selected_var]]
+    )
+  ) +
+    geom_col(width = 1, color = "white") +
+    coord_polar(theta = "y") +
+    geom_text(
+      aes(label = label),
+      position = position_stack(vjust = 0.5),
+      size = 4
+    ) +
+    labs(
+      title = paste(
+        "Distribution of",
+        stringr::str_to_title(
+          stringr::str_replace_all(selected_var, "_", " ")
+        )
+      ),
+      x = NULL,
+      y = NULL,
+      fill = stringr::str_to_title(
+        stringr::str_replace_all(selected_var, "_", " ")
+      )
+    ) +
+    theme_void() +
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        face = "bold"
+      )
+    )
+}
 
 # --------------------------- 1.Histogram ----------------------------
 
@@ -158,11 +248,49 @@ plot_profit_by_subcategory <- function(data, selected_category = "All") {
 
 # ---------------------------- 3.Box Plot ----------------------------
 
-#something to do with product quantity (customers are more likely to buy multiples of a certain sub category over another) 
+plot_discount_boxplot <- function(data) {
+  ggplot(
+    data,
+    aes(x = category, y = discount, fill = category)
+  ) +
+    geom_boxplot(outlier.alpha = 0.3) +
+    labs(
+      title = "Discount Distribution by Product Category",
+      x = "Product Category",
+      y = "Discount Rate",
+      fill = "Category"
+    ) +
+    scale_y_continuous(
+      labels = scales::label_percent()
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      legend.position = "none"
+    )
+}
+# ------------------------- 4.Faceted Plot ---------------------------
 
-# ----------------------- 4.Faceted Something ------------------------
-
-#something to do with ship category
+plot_shipping_time <- function(data) {
+  shipping_data <- data |>
+    mutate(
+      shipping_days = as.numeric(ship_date - order_date)
+    ) |>
+    filter(!is.na(shipping_days), shipping_days >= 0)
+  
+  ggplot(shipping_data, aes(x = shipping_days)) +
+    geom_histogram(
+      binwidth = 1,
+      fill = "steelblue",
+      color = "white"
+    ) +
+    facet_wrap(~ship_mode) +
+    labs(
+      title = "Shipping Duration by Shipping Mode",
+      x = "Shipping time (Shipment date - Order date)",
+      y = "Number of Order Lines"
+    ) +
+    theme_minimal(base_size = 12)
+}
 
 # ---------------------------- 5. Bump Chart ----------------------------
 
@@ -255,6 +383,3 @@ plot_discount_profit_heatmap <- function(data) {
       panel.grid = element_blank()
     )
 }
-
-
-#plot_discount_profit_heatmap(superstore)
