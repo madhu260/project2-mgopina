@@ -37,6 +37,14 @@ ui <- fluidPage(
         max = 50,
         value = 25
       ),
+      sliderInput(
+        "rank_value",
+        "Top Categories shown:",
+        min = 2,
+        max = 17,
+        value = 25
+      ),
+      
       actionButton("apply", "Apply")
     ),
     mainPanel(tabsetPanel(
@@ -56,14 +64,15 @@ ui <- fluidPage(
       tabPanel(
         "Data Exploration",
         p("EDA work"),
-        plotOutput("distPlot"),
-        plotOutput("barGraph")
+        plotOutput("histogram"),
+        plotOutput("barGraph"),
+        plotOutput("bumpPlot")
       )
     ))
   )
 )
 
-# ================= Server =================
+# ======================= Server ========================
 server <- function(input, output) {
   filtered <- eventReactive(input$apply,
     {
@@ -79,9 +88,17 @@ server <- function(input, output) {
     },
     ignoreInit = TRUE
   )
-
-# ----------------------- histogram -----------------------
-  output$distPlot <- renderPlot({
+  # ----------------------- Numerical Summaries -----------------------
+  
+  
+  # ----------------------- Plots -----------------------
+  
+  #output$pieChart <- renderPlot({
+    
+  #})
+  
+  
+  output$histogram <- renderPlot({
     req(filtered())
     data <- filtered()$data
 
@@ -92,72 +109,36 @@ server <- function(input, output) {
         "No positive sales values available."
       )
     )
+    
+    plot_sales_histogram(filtered()$data, filtered()$bins)
 
-    ggplot(filter(data, sales > 0), aes(x = sales)) +
-      geom_histogram(
-        bins = filtered()$bins,
-        fill = "steelblue",
-        color = "white"
-      ) +
-      scale_x_log10() +
-      labs(title = "Distribution of Order Sales", x = "Log(Sales) (log $)", y = "Number of Records") +
-      theme_minimal(base_size = 13)
   })
 
-# ----------------------- bar graph -----------------------
   output$barGraph <- renderPlot({
     req(filtered())
     data <- filtered()$data
 
     validate(need(nrow(data) > 0, "No data available for this filter."))
-
-    profit_by_subcategory <- data |>
-      group_by(category, sub_category) |>
-      summarise(
-        total_profit = sum(profit, na.rm = TRUE),
-        .groups = "drop"
-      )
-
-    # If all categories, color by category. Else profit = green / loss = red
-
-    if (filtered()$category == "All") {
-      ggplot(
-        profit_by_subcategory,
-        aes(
-          x = reorder(sub_category, total_profit),
-          y = total_profit,
-          fill = category
-        )
-      ) +
-        geom_col() +
-        geom_hline(yintercept = 0, color = "gray40") +
-        coord_flip() +
-        labs(title = "Total Profit by Product Sub-Category", x = NULL, y = "Total Profit ($)") +
-        theme_minimal()
-    } else {
-      ggplot(
-        profit_by_subcategory,
-        aes(
-          x = reorder(sub_category, total_profit),
-          y = total_profit,
-          fill = total_profit > 0
-        )
-      ) +
-        geom_col() +
-        geom_hline(yintercept = 0, color = "gray40") +
-        coord_flip() +
-        scale_fill_manual(
-          values = c(
-            "TRUE" = "seagreen3",
-            "FALSE" = "indianred2"
-          ),
-          guide = "none"
-        ) +
-        labs(title = "Total Profit by Product Sub-Category", x = NULL, y = "Total Profit ($)") +
-        theme_minimal()
-    }
+    
+    plot_profit_by_subcategory(filtered()$data, filtered()$category)
+    
   })
-}
+  
+  #output$boxPlot <- renderPlot({
+    
+  #})
+
+  # output$facetWrap <- renderPlot({
+  #   
+  # })
+  # output$heatmap <- renderPlot({
+  #   
+  # })
+  
+  output$bumpPlot <- renderPlot({
+    req(filtered())
+    plot_profit_ranking(filtered()$data)
+  })}
 
 # Run the application
 shinyApp(ui = ui, server = server)
