@@ -24,6 +24,40 @@ none_num <- c("None" = "none", num_var)
 
 # ========================== UI =========================
 ui <- fluidPage(
+  tags$head(
+    tags$style(HTML("
+      @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@600&display=swap');
+
+      body { background-color: #d7cec7; }
+
+      h3 { font-family: 'Montserrat', sans-serif; color: #76323F; }
+      p  { font-family: 'Lato', sans-serif; color: #565656; }
+      .tab-pane > ul > li { font-family: 'Lato', sans-serif; color: #565656; }
+      .shiny-text-output { font-family: 'Lato', sans-serif; color: #565656; }
+      
+      /* Sidebars */
+      .well {
+        background-color: #76323F;
+        border-color: #76323F;
+        font-family: 'Lato', sans-serif;
+        color: #d7cec7;
+      }
+      .well h4, .well label, .well p { color: #d7cec7; }
+
+      /* Apply button */
+      .well .btn-default {
+        background-color: #c09f80;
+        border-color: #c09f80;
+        color: #2b2b2b;
+        font-weight: 700;
+      }
+      .well .btn-default:hover {
+        background-color: #d1b79c;
+        border-color: #d1b79c;
+      }
+      .nav-tabs > li > a { color: #76323F; }
+    "))
+  ),  
   # Application title
   titlePanel("Superstore Data"),
   sidebarLayout(
