@@ -5,6 +5,19 @@ library(ggplot2)
 
 source("helpers.R")
 
+# ===================== UI helpers =====================
+
+# Conditions that show a sidebar option only for the selected plot/table
+cat_condition <- function(tab) {
+  paste0("input.eda_tabs == 'Categorical Summaries' && input.cat_tabs == '", tab, "'")
+}
+
+num_condition <- function(tab) {
+  paste0("input.eda_tabs == 'Numerical Summaries' && input.num_tabs == '", tab, "'")
+}
+
+none_cat <- c("None" = "none", cat_var)
+
 # ========================== UI =========================
 ui <- fluidPage(
   # Application title
@@ -79,31 +92,73 @@ ui <- fluidPage(
           "Data Exploration",
           sidebarLayout(
             
-            # ---- Data Exploration sidebar: shows only the option for the selected plot ----
+            # ---- Data Exploration sidebar: shows only the options for the selected plot ----
             sidebarPanel(
               width = 3,
               
+              # ---------- Categorical Summaries ----------
+              
               # Pie Chart
               conditionalPanel(
-                condition = "input.eda_tabs == 'Categorical Summaries' &&
-                             input.cat_tabs == 'Pie Chart'",
+                condition = cat_condition("Pie Chart"),
                 h4("Plot Options"),
                 selectInput(
-                  inputId = "pieVar",
-                  label = "Select categorical variable for pie chart:",
+                  "pieVar",
+                  "Categorical variable:",
                   choices = cat_var,
                   selected = "category"
                 )
               ),
               
-              # Bump Chart
+              # Bar Chart
               conditionalPanel(
-                condition = "input.eda_tabs == 'Categorical Summaries' &&
-                             input.cat_tabs == 'Bump Chart'",
+                condition = cat_condition("Bar Chart"),
                 h4("Plot Options"),
+                selectInput(
+                  "bar_num",
+                  "Numeric variable:",
+                  choices = num_var,
+                  selected = "profit"
+                ),
+                selectInput(
+                  "bar_group",
+                  "Group by:",
+                  choices = cat_var,
+                  selected = "sub_category"
+                ),
+                selectInput(
+                  "bar_fill",
+                  "Color by (optional):",
+                  choices = none_cat,
+                  selected = "category"
+                ),
+                radioButtons(
+                  "bar_stat",
+                  "Summary:",
+                  choices = c("Total" = "sum", "Average" = "mean"),
+                  selected = "sum"
+                )
+              ),
+              
+              # Bump Chart (slider max is updated by the server to match the subset)
+              conditionalPanel(
+                condition = cat_condition("Bump Chart"),
+                h4("Plot Options"),
+                selectInput(
+                  "rank_var",
+                  "Rank:",
+                  choices = rank_var_choices,
+                  selected = "sub_category"
+                ),
+                selectInput(
+                  "rank_metric",
+                  "Ranked by:",
+                  choices = metric_choices,
+                  selected = "profit"
+                ),
                 sliderInput(
-                  inputId = "rank_value",
-                  label = "Number of sub-categories to display:",
+                  "rank_value",
+                  "Number of groups to display:",
                   min = 1,
                   max = nlevels(superstore$sub_category),
                   value = nlevels(superstore$sub_category),
@@ -111,11 +166,53 @@ ui <- fluidPage(
                 )
               ),
               
-              # Sales Histogram
+              # Contingency Table
               conditionalPanel(
-                condition = "input.eda_tabs == 'Numerical Summaries' &&
-                             input.num_tabs == 'Sales Histogram'",
+                condition = cat_condition("Contingency Table"),
+                h4("Table Options"),
+                selectInput(
+                  "tab_var1",
+                  "Variable 1:",
+                  choices = cat_var,
+                  selected = "category"
+                ),
+                selectInput(
+                  "tab_var2",
+                  "Variable 2 (makes a two-way table):",
+                  choices = none_cat,
+                  selected = "none"
+                )
+              ),
+              
+              # ---------- Numerical Summaries ----------
+              
+              # Histogram
+              conditionalPanel(
+                condition = num_condition("Histogram"),
                 h4("Plot Options"),
+                selectInput(
+                  "hist_num",
+                  "Numeric variable:",
+                  choices = num_var,
+                  selected = "sales"
+                ),
+                selectInput(
+                  "hist_fill",
+                  "Color by (optional):",
+                  choices = none_cat,
+                  selected = "none"
+                ),
+                selectInput(
+                  "hist_facet",
+                  "Facet by (optional):",
+                  choices = none_cat,
+                  selected = "none"
+                ),
+                checkboxInput(
+                  "hist_log",
+                  "Log scale (drops values <= 0)",
+                  value = TRUE
+                ),
                 sliderInput(
                   "bins",
                   "Number of bins:",
@@ -125,13 +222,94 @@ ui <- fluidPage(
                 )
               ),
               
-              # Plots with no options
+              # Boxplot
               conditionalPanel(
-                condition = "(input.eda_tabs == 'Categorical Summaries' &&
-                              input.cat_tabs == 'Profit by Sub-Category') ||
-                             (input.eda_tabs == 'Numerical Summaries' &&
-                              input.num_tabs != 'Sales Histogram')",
-                helpText("No extra options for this plot.")
+                condition = num_condition("Boxplot"),
+                h4("Plot Options"),
+                selectInput(
+                  "box_num",
+                  "Numeric variable:",
+                  choices = num_var,
+                  selected = "discount"
+                ),
+                selectInput(
+                  "box_cat",
+                  "Compare across:",
+                  choices = cat_var,
+                  selected = "category"
+                ),
+                selectInput(
+                  "box_fill",
+                  "Color by (optional):",
+                  choices = none_cat,
+                  selected = "category"
+                ),
+                selectInput(
+                  "box_facet",
+                  "Facet by (optional):",
+                  choices = none_cat,
+                  selected = "none"
+                )
+              ),
+              
+              # Heatmap
+              conditionalPanel(
+                condition = num_condition("Heatmap"),
+                h4("Plot Options"),
+                selectInput(
+                  "heat_x",
+                  "Columns (x-axis):",
+                  choices = cat_var,
+                  selected = "discount_level"
+                ),
+                selectInput(
+                  "heat_y",
+                  "Rows (y-axis):",
+                  choices = cat_var,
+                  selected = "sub_category"
+                ),
+                selectInput(
+                  "heat_num",
+                  "Numeric variable to average:",
+                  choices = num_var,
+                  selected = "profit"
+                )
+              ),
+              
+              # Shipping Duration
+              conditionalPanel(
+                condition = num_condition("Shipping Duration"),
+                h4("Plot Options"),
+                selectInput(
+                  "ship_facet",
+                  "Facet by:",
+                  choices = cat_var,
+                  selected = "ship_mode"
+                ),
+                selectInput(
+                  "ship_fill",
+                  "Color by (optional):",
+                  choices = none_cat,
+                  selected = "none"
+                )
+              ),
+              
+              # Summary Statistics
+              conditionalPanel(
+                condition = num_condition("Summary Statistics"),
+                h4("Table Options"),
+                selectInput(
+                  "sum_num",
+                  "Numeric variable:",
+                  choices = num_var,
+                  selected = "sales"
+                ),
+                selectInput(
+                  "sum_cat",
+                  "Summarize across levels of:",
+                  choices = cat_var,
+                  selected = "category"
+                )
               )
             ),
             
@@ -150,12 +328,16 @@ ui <- fluidPage(
                       plotOutput("pieChart")
                     ),
                     tabPanel(
-                      "Profit by Sub-Category",
+                      "Bar Chart",
                       plotOutput("barGraph")
                     ),
                     tabPanel(
                       "Bump Chart",
                       plotOutput("bumpPlot")
+                    ),
+                    tabPanel(
+                      "Contingency Table",
+                      tableOutput("contingencyTable")
                     )
                   )
                 ),
@@ -166,20 +348,24 @@ ui <- fluidPage(
                   tabsetPanel(
                     id = "num_tabs",
                     tabPanel(
-                      "Sales Histogram",
+                      "Histogram",
                       plotOutput("histogram")
                     ),
                     tabPanel(
-                      "Discount Boxplot",
+                      "Boxplot",
                       plotOutput("boxPlot")
                     ),
                     tabPanel(
-                      "Discount-Profit Heatmap",
+                      "Heatmap",
                       plotOutput("heatmap")
                     ),
                     tabPanel(
                       "Shipping Duration",
                       plotOutput("facetWrap")
+                    ),
+                    tabPanel(
+                      "Summary Statistics",
+                      tableOutput("summaryTable")
                     )
                   )
                 )
@@ -195,142 +381,163 @@ ui <- fluidPage(
 
 # ======================= Server ========================
 server <- function(input, output, session) {
-    filtered <- eventReactive(input$apply,
+  
+  # ignoreNULL = FALSE: start with the full data, then only update on "Apply"
+  filtered <- eventReactive(input$apply,
                             {
-                              list(
-                                data = superstore |>
-                                  apply_filter("region", input$region) |>
-                                  apply_filter("segment", input$segment) |>
-                                  apply_filter("category", input$category),
-                                category = input$category
-                              )
+                              superstore |>
+                                apply_filter("region", input$region) |>
+                                apply_filter("segment", input$segment) |>
+                                apply_filter("category", input$category)
                             },
                             ignoreNULL = FALSE
   )
   
-  observeEvent(filtered(), {
-    n_sub <- max(n_distinct(filtered()$data$sub_category), 1)
+  # The subset, with one shared message if nothing matches the selections
+  plot_data <- reactive({
+    dat <- filtered()
+    validate(
+      need(nrow(dat) > 0, "No data available for these selections.")
+    )
+    dat
+  })
+  
+  # Keep the bump chart slider in sync with the current subset and the
+  # variable being ranked: its max (and default) is the number of groups
+  observe({
+    req(input$rank_var)
+    n_groups <- max(n_distinct(filtered()[[input$rank_var]]), 1)
     
     updateSliderInput(
       session,
       "rank_value",
       min = 1,
-      max = n_sub,
-      value = n_sub
+      max = n_groups,
+      value = n_groups
     )
   })
   
   # ===================== Categorical Plots =====================
   
   output$pieChart <- renderPlot({
-    req(filtered())
-    validate(
-      need(nrow(filtered()$data) > 0, "No data available for these selections.")
-    )
-    
     plot_category_pie(
-      filtered()$data,
+      plot_data(),
       input$pieVar
     )
   })
   
   output$barGraph <- renderPlot({
-    req(filtered())
-    validate(
-      need(nrow(filtered()$data) > 0, "No data available for these selections.")
-    )
-    
-    plot_profit_by_subcategory(
-      filtered()$data,
-      filtered()$category
+    plot_summary_bar(
+      plot_data(),
+      num_var = input$bar_num,
+      group_var = input$bar_group,
+      fill_var = input$bar_fill,
+      stat = input$bar_stat
     )
   })
   
-  
   output$bumpPlot <- renderPlot({
-    req(filtered())
+    dat <- plot_data()
+    n_groups <- n_distinct(dat[[input$rank_var]])
     
-    data <- filtered()$data
-    
-    subcategories <- data |>
-      distinct(sub_category) |>
-      filter(!is.na(sub_category)) |>
-      pull(sub_category)
-    
-    n_subcategories <- length(subcategories)
-    
-    if (n_subcategories == 0) {
-      plot.new()
-      text(
-        0.5, 0.5,
-        "No sub-categories to display!\nExpand the data set so more can be visible.",
-        cex = 1.2
-      )
-      return()
-    }
-    
-    if (n_subcategories == 1) {
-      plot.new()
-      text(
-        0.5, 0.5,
+    validate(
+      need(
+        n_groups >= 2,
         paste0(
-          "Only one sub-category (", subcategories[1],
-          ")!\nExpand the data set so more can be visible."
-        ),
-        cex = 1.2
+          "Only ", n_groups, " level of ", pretty_name(input$rank_var),
+          " in this subset, so there is nothing to rank.\n",
+          "Expand the data set so more can be visible."
+        )
       )
-      return()
-    }
-    
-    plot_profit_ranking(
-      data,
-      n_top = min(input$rank_value, n_subcategories)
     )
+    
+    plot_ranking(
+      dat,
+      rank_var = input$rank_var,
+      metric = input$rank_metric,
+      n_top = min(input$rank_value, n_groups)
+    )
+  })
+  
+  output$contingencyTable <- renderTable({
+    dat <- plot_data()
+    
+    if (input$tab_var2 == "none") {
+      one_way_contingency(dat, input$tab_var1)
+    } else {
+      validate(
+        need(
+          input$tab_var1 != input$tab_var2,
+          "Please choose two different variables for a two-way table."
+        )
+      )
+      two_way_contingency(dat, input$tab_var1, input$tab_var2)
+    }
   })
   
   # ====================== Numerical Plots ======================
   
   output$histogram <- renderPlot({
-    req(filtered())
+    dat <- plot_data()
+    
     validate(
-      need(nrow(filtered()$data) > 0, "No data available for these selections."),
       need(
-        any(filtered()$data$sales > 0, na.rm = TRUE),
-        "No positive sales values available."
+        !input$hist_log || any(dat[[input$hist_num]] > 0, na.rm = TRUE),
+        "No positive values to show on a log scale. Uncheck the log scale option."
       )
     )
     
-    plot_sales_histogram(
-      filtered()$data,
-      bins = input$bins
+    plot_histogram(
+      dat,
+      num_var = input$hist_num,
+      bins = input$bins,
+      fill_var = input$hist_fill,
+      facet_var = input$hist_facet,
+      log_scale = input$hist_log
     )
   })
   
   output$boxPlot <- renderPlot({
-    req(filtered())
-    validate(
-      need(nrow(filtered()$data) > 0, "No data available for these selections.")
+    plot_numeric_boxplot(
+      plot_data(),
+      num_var = input$box_num,
+      cat_var = input$box_cat,
+      fill_var = input$box_fill,
+      facet_var = input$box_facet
     )
-    
-    plot_discount_boxplot(filtered()$data)
   })
   
   output$heatmap <- renderPlot({
-    req(filtered())
     validate(
-      need(nrow(filtered()$data) > 0, "No data available for these selections.")
+      need(
+        input$heat_x != input$heat_y,
+        "Please choose two different variables for the heatmap."
+      )
     )
     
-    plot_discount_profit_heatmap(filtered()$data)
+    plot_heatmap(
+      plot_data(),
+      x_var = input$heat_x,
+      y_var = input$heat_y,
+      num_var = input$heat_num
+    )
   })
   
   output$facetWrap <- renderPlot({
-    req(filtered())
-    validate(
-      need(nrow(filtered()$data) > 0, "No data available for these selections.")
+    plot_shipping_time(
+      plot_data(),
+      facet_var = input$ship_facet,
+      fill_var = input$ship_fill
     )
-    
-    plot_shipping_time(filtered()$data)
+  })
+  
+  output$summaryTable <- renderTable({
+    grouped_numerical_summary(
+      plot_data(),
+      num_var = input$sum_num,
+      cat_var = input$sum_cat
+    ) |>
+      mutate(across(where(is.numeric), ~ round(.x, 2)))
   })
 }
 
