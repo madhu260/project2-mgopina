@@ -102,7 +102,23 @@ ui <- fluidPage(
             tags$li("Explore categorical and numerical variables through plots."),
             tags$li("Compare product profitability and rankings over time."),
             tags$li("Download and examine the dataset.")
-          )
+          ),
+          
+          br(),
+          fluidRow(
+            column(
+              6,
+              img(src = "super_1.jpg", width = "100%", alt = "3 cartoon Supermarkets")
+            ),
+            column(
+              6,
+              img(src = "super_2.png", width = "100%", alt = "woman in market")
+            )
+            
+          ),
+
+          p("Image Credits: https://www.foodandwine.com/lifestyle/best-supermarket-america-usa")
+          
         ),
 
         # ------------------------ Data Download ------------------------
