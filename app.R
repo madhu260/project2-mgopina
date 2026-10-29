@@ -2,6 +2,8 @@
 library(shiny)
 library(tidyverse)
 library(ggplot2)
+library(DT)
+library(shinycssloaders)
 
 source("helpers.R")
 
@@ -16,14 +18,15 @@ num_condition <- function(tab) {
   paste0("input.eda_tabs == 'Numerical Summaries' && input.num_tabs == '", tab, "'")
 }
 
+# Optional variables get a "None" choice
 none_cat <- c("None" = "none", cat_var)
+none_num <- c("None" = "none", num_var)
 
 # ========================== UI =========================
 ui <- fluidPage(
   # Application title
   titlePanel("Superstore Data"),
   sidebarLayout(
-    
     # ------------- Global sidebar: subsetting only -------------
     sidebarPanel(
       h4("Subset the Data"),
@@ -45,20 +48,42 @@ ui <- fluidPage(
         choices = c("All", levels(superstore$category)),
         selected = "All"
       ),
+      hr(),
+      h4("Filter by Numeric Variables"),
+      selectInput(
+        "num_filter1",
+        "First numeric variable:",
+        choices = none_num,
+        selected = "none"
+      ),
+      uiOutput("slider1"),
+      selectInput(
+        "num_filter2",
+        "Second numeric variable:",
+        choices = none_num,
+        selected = "none"
+      ),
+      uiOutput("slider2"),
+      hr(),
       actionButton("apply", "Apply")
     ),
-    
-    
     mainPanel(
       tabsetPanel(
         id = "main_tabs",
-        
+
         # ------------------------ About ------------------------
         tabPanel(
           "About",
           h3("Purpose"),
-          p("Explore the Superstore dataset using interactive visualizations and summary statistics."),
-          
+          p(
+            "The purpose of this app is to help users understand online sales, in an
+          easy and interactive manner, by using data from a US retail superstore.",
+            "You can narrow the dataset easily using filters, download that subset, or even create
+          specific summary statistics and visuals as a report for that subset.",
+            "By allowing users to customize their analysis, this app makes it easier to",
+            "identify trends, compare product categories, and explore factors associated with",
+            "profitability, helping users gain insights into the store's overall business performance"
+          ),
           br(),
           h3("Data and Source"),
           p("The dataset contains information about orders, products, sales, discounts, profits, and shipping."),
@@ -70,7 +95,6 @@ ui <- fluidPage(
               target = "_blank"
             )
           ),
-          
           br(),
           h3("Functionality"),
           tags$ul(
@@ -80,24 +104,28 @@ ui <- fluidPage(
             tags$li("Download and examine the dataset.")
           )
         ),
-        
+
         # ------------------------ Data Download ------------------------
         tabPanel(
           "Data Download",
-          p("Display and download the data here.")
+          br(),
+          downloadButton("download_data", "Download Data (.csv)"),
+          br(), br(),
+          textOutput("n_rows"),
+          br(),
+          withSpinner(DT::dataTableOutput("data_table"))
         ),
-        
+
         # ------------------------ Data Exploration ------------------------
         tabPanel(
           "Data Exploration",
           sidebarLayout(
-            
             # ---- Data Exploration sidebar: shows only the options for the selected plot ----
             sidebarPanel(
               width = 3,
-              
+
               # ---------- Categorical Summaries ----------
-              
+
               # Pie Chart
               conditionalPanel(
                 condition = cat_condition("Pie Chart"),
@@ -109,7 +137,7 @@ ui <- fluidPage(
                   selected = "category"
                 )
               ),
-              
+
               # Bar Chart
               conditionalPanel(
                 condition = cat_condition("Bar Chart"),
@@ -139,7 +167,7 @@ ui <- fluidPage(
                   selected = "sum"
                 )
               ),
-              
+
               # Bump Chart (slider max is updated by the server to match the subset)
               conditionalPanel(
                 condition = cat_condition("Bump Chart"),
@@ -165,7 +193,7 @@ ui <- fluidPage(
                   step = 1
                 )
               ),
-              
+
               # Contingency Table
               conditionalPanel(
                 condition = cat_condition("Contingency Table"),
@@ -183,9 +211,9 @@ ui <- fluidPage(
                   selected = "none"
                 )
               ),
-              
+
               # ---------- Numerical Summaries ----------
-              
+
               # Histogram
               conditionalPanel(
                 condition = num_condition("Histogram"),
@@ -221,7 +249,7 @@ ui <- fluidPage(
                   value = 25
                 )
               ),
-              
+
               # Boxplot
               conditionalPanel(
                 condition = num_condition("Boxplot"),
@@ -251,7 +279,7 @@ ui <- fluidPage(
                   selected = "none"
                 )
               ),
-              
+
               # Heatmap
               conditionalPanel(
                 condition = num_condition("Heatmap"),
@@ -275,7 +303,7 @@ ui <- fluidPage(
                   selected = "profit"
                 )
               ),
-              
+
               # Shipping Duration
               conditionalPanel(
                 condition = num_condition("Shipping Duration"),
@@ -293,7 +321,7 @@ ui <- fluidPage(
                   selected = "none"
                 )
               ),
-              
+
               # Summary Statistics
               conditionalPanel(
                 condition = num_condition("Summary Statistics"),
@@ -312,12 +340,11 @@ ui <- fluidPage(
                 )
               )
             ),
-            
             mainPanel(
               width = 9,
               tabsetPanel(
                 id = "eda_tabs",
-                
+
                 # ------------------------ Categorical Summaries ------------------------
                 tabPanel(
                   "Categorical Summaries",
@@ -325,23 +352,23 @@ ui <- fluidPage(
                     id = "cat_tabs",
                     tabPanel(
                       "Pie Chart",
-                      plotOutput("pieChart")
+                      withSpinner(plotOutput("pieChart"))
                     ),
                     tabPanel(
                       "Bar Chart",
-                      plotOutput("barGraph")
+                      withSpinner(plotOutput("barGraph"))
                     ),
                     tabPanel(
                       "Bump Chart",
-                      plotOutput("bumpPlot")
+                      withSpinner(plotOutput("bumpPlot"))
                     ),
                     tabPanel(
                       "Contingency Table",
-                      tableOutput("contingencyTable")
+                      withSpinner(tableOutput("contingencyTable"))
                     )
                   )
                 ),
-                
+
                 # ------------------------ Numerical Summaries ------------------------
                 tabPanel(
                   "Numerical Summaries",
@@ -349,23 +376,23 @@ ui <- fluidPage(
                     id = "num_tabs",
                     tabPanel(
                       "Histogram",
-                      plotOutput("histogram")
+                      withSpinner(plotOutput("histogram"))
                     ),
                     tabPanel(
                       "Boxplot",
-                      plotOutput("boxPlot")
+                      withSpinner(plotOutput("boxPlot"))
                     ),
                     tabPanel(
                       "Heatmap",
-                      plotOutput("heatmap")
+                      withSpinner(plotOutput("heatmap"))
                     ),
                     tabPanel(
                       "Shipping Duration",
-                      plotOutput("facetWrap")
+                      withSpinner(plotOutput("facetWrap"))
                     ),
                     tabPanel(
                       "Summary Statistics",
-                      tableOutput("summaryTable")
+                      withSpinner(tableOutput("summaryTable"))
                     )
                   )
                 )
@@ -376,23 +403,29 @@ ui <- fluidPage(
       )
     )
   )
-  
 )
 
 # ======================= Server ========================
 server <- function(input, output, session) {
-  
   # ignoreNULL = FALSE: start with the full data, then only update on "Apply"
   filtered <- eventReactive(input$apply,
-                            {
-                              superstore |>
-                                apply_filter("region", input$region) |>
-                                apply_filter("segment", input$segment) |>
-                                apply_filter("category", input$category)
-                            },
-                            ignoreNULL = FALSE
+    {
+      superstore |>
+        apply_filter("region", input$region) |>
+        apply_filter("segment", input$segment) |>
+        apply_filter("category", input$category) |>
+        apply_range_filter(
+          input$num_filter1,
+          input[[paste0("slider1_", input$num_filter1)]]
+        ) |>
+        apply_range_filter(
+          input$num_filter2,
+          input[[paste0("slider2_", input$num_filter2)]]
+        )
+    },
+    ignoreNULL = FALSE
   )
-  
+
   # The subset, with one shared message if nothing matches the selections
   plot_data <- reactive({
     dat <- filtered()
@@ -401,13 +434,13 @@ server <- function(input, output, session) {
     )
     dat
   })
-  
+
   # Keep the bump chart slider in sync with the current subset and the
   # variable being ranked: its max (and default) is the number of groups
   observe({
     req(input$rank_var)
     n_groups <- max(n_distinct(filtered()[[input$rank_var]]), 1)
-    
+
     updateSliderInput(
       session,
       "rank_value",
@@ -416,16 +449,60 @@ server <- function(input, output, session) {
       value = n_groups
     )
   })
-  
+
+  # ================= Dynamic sliders for the numeric filters =================
+  # The slider id includes the variable name, so a slider that has not been
+  # re-drawn yet can never be applied to the wrong variable.
+
+  output$slider1 <- renderUI({
+    req(input$num_filter1 != "none")
+    make_range_slider(
+      paste0("slider1_", input$num_filter1),
+      input$num_filter1,
+      superstore
+    )
+  })
+
+  output$slider2 <- renderUI({
+    req(input$num_filter2 != "none")
+    make_range_slider(
+      paste0("slider2_", input$num_filter2),
+      input$num_filter2,
+      superstore
+    )
+  })
+
+  # ====================== Data Download ======================
+
+  output$n_rows <- renderText({
+    paste("Rows in current subset:", format(nrow(filtered()), big.mark = ","))
+  })
+
+  output$data_table <- DT::renderDataTable(
+    {
+      filtered()
+    },
+    options = list(pageLength = 10, scrollX = TRUE)
+  )
+
+  output$download_data <- downloadHandler(
+    filename = function() {
+      paste0("superstore_subset_", Sys.Date(), ".csv")
+    },
+    content = function(file) {
+      write_csv(filtered(), file)
+    }
+  )
+
   # ===================== Categorical Plots =====================
-  
+
   output$pieChart <- renderPlot({
     plot_category_pie(
       plot_data(),
       input$pieVar
     )
   })
-  
+
   output$barGraph <- renderPlot({
     plot_summary_bar(
       plot_data(),
@@ -435,11 +512,11 @@ server <- function(input, output, session) {
       stat = input$bar_stat
     )
   })
-  
+
   output$bumpPlot <- renderPlot({
     dat <- plot_data()
     n_groups <- n_distinct(dat[[input$rank_var]])
-    
+
     validate(
       need(
         n_groups >= 2,
@@ -450,7 +527,7 @@ server <- function(input, output, session) {
         )
       )
     )
-    
+
     plot_ranking(
       dat,
       rank_var = input$rank_var,
@@ -458,10 +535,10 @@ server <- function(input, output, session) {
       n_top = min(input$rank_value, n_groups)
     )
   })
-  
+
   output$contingencyTable <- renderTable({
     dat <- plot_data()
-    
+
     if (input$tab_var2 == "none") {
       one_way_contingency(dat, input$tab_var1)
     } else {
@@ -474,19 +551,19 @@ server <- function(input, output, session) {
       two_way_contingency(dat, input$tab_var1, input$tab_var2)
     }
   })
-  
+
   # ====================== Numerical Plots ======================
-  
+
   output$histogram <- renderPlot({
     dat <- plot_data()
-    
+
     validate(
       need(
         !input$hist_log || any(dat[[input$hist_num]] > 0, na.rm = TRUE),
         "No positive values to show on a log scale. Uncheck the log scale option."
       )
     )
-    
+
     plot_histogram(
       dat,
       num_var = input$hist_num,
@@ -496,7 +573,7 @@ server <- function(input, output, session) {
       log_scale = input$hist_log
     )
   })
-  
+
   output$boxPlot <- renderPlot({
     plot_numeric_boxplot(
       plot_data(),
@@ -506,7 +583,7 @@ server <- function(input, output, session) {
       facet_var = input$box_facet
     )
   })
-  
+
   output$heatmap <- renderPlot({
     validate(
       need(
@@ -514,7 +591,7 @@ server <- function(input, output, session) {
         "Please choose two different variables for the heatmap."
       )
     )
-    
+
     plot_heatmap(
       plot_data(),
       x_var = input$heat_x,
@@ -522,7 +599,7 @@ server <- function(input, output, session) {
       num_var = input$heat_num
     )
   })
-  
+
   output$facetWrap <- renderPlot({
     plot_shipping_time(
       plot_data(),
@@ -530,7 +607,7 @@ server <- function(input, output, session) {
       fill_var = input$ship_fill
     )
   })
-  
+
   output$summaryTable <- renderTable({
     grouped_numerical_summary(
       plot_data(),

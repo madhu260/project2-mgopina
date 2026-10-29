@@ -49,7 +49,7 @@ superstore <- superstore |>
     quantity = as.integer(quantity),
     discount = as.double(discount),
     profit = as.double(profit),
-    
+
     # ---- derived variables (so they can be chosen in the app) ----
     shipping_days = as.numeric(ship_date - order_date),
     order_year = factor(lubridate::year(order_date)),
@@ -91,9 +91,36 @@ apply_filter <- function(data, var, level) {
   if (level == "All") {
     return(data)
   }
-  
+
   data |>
     filter(.data[[var]] == level)
+}
+
+# Keep rows inside slider range.
+apply_range_filter <- function(data, var, rng) {
+  if (var == "none" || is.null(rng)) {
+    return(data)
+  }
+
+  data |>
+    filter(.data[[var]] >= rng[1], .data[[var]] <= rng[2])
+}
+
+# Two-value slider
+make_range_slider <- function(input_id, var, data) {
+  digits <- if (var == "discount") 2 else 0
+  values <- data[[var]]
+  lo <- floor(min(values, na.rm = TRUE) * 10^digits) / 10^digits
+  hi <- ceiling(max(values, na.rm = TRUE) * 10^digits) / 10^digits
+
+  shiny::sliderInput(
+    inputId = input_id,
+    label = paste("Range of", names(num_var)[match(var, num_var)]),
+    min = lo,
+    max = hi,
+    value = c(lo, hi),
+    step = 10^(-digits)
+  )
 }
 
 # "sub_category" -> "Sub Category"
@@ -106,7 +133,7 @@ add_facet <- function(plot, facet_var) {
   if (facet_var == "none") {
     return(plot)
   }
-  
+
   plot + facet_wrap(as.formula(paste("~", facet_var)))
 }
 
@@ -161,7 +188,6 @@ grouped_numerical_summary <- function(data, num_var, cat_var) {
 # --------------------------- 0. Pie Chart ----------------------------
 
 plot_category_pie <- function(data, selected_var = "category") {
-  
   pie_data <- data |>
     count(.data[[selected_var]], name = "count") |>
     filter(count > 0) |>
@@ -172,7 +198,7 @@ plot_category_pie <- function(data, selected_var = "category") {
         "%"
       )
     )
-  
+
   ggplot(
     pie_data,
     aes(
@@ -207,14 +233,13 @@ plot_category_pie <- function(data, selected_var = "category") {
 
 plot_histogram <- function(data, num_var, bins = 25, fill_var = "none",
                            facet_var = "none", log_scale = FALSE) {
-  
   if (log_scale) {
     data <- data |>
       filter(.data[[num_var]] > 0)
   }
-  
+
   p <- ggplot(data, aes(x = .data[[num_var]]))
-  
+
   if (fill_var == "none") {
     p <- p +
       geom_histogram(bins = bins, fill = "blue", color = "white")
@@ -223,13 +248,13 @@ plot_histogram <- function(data, num_var, bins = 25, fill_var = "none",
       geom_histogram(aes(fill = .data[[fill_var]]), bins = bins, color = "white") +
       labs(fill = pretty_name(fill_var))
   }
-  
+
   if (log_scale) {
     p <- p + scale_x_log10()
   }
-  
+
   p <- add_facet(p, facet_var)
-  
+
   p +
     labs(
       title = paste("Distribution of", pretty_name(num_var)),
@@ -248,18 +273,17 @@ plot_histogram <- function(data, num_var, bins = 25, fill_var = "none",
 
 plot_summary_bar <- function(data, num_var, group_var, fill_var = "none",
                              stat = "sum") {
-  
   summary_fn <- if (stat == "mean") mean else sum
   stat_label <- if (stat == "mean") "Average" else "Total"
   group_vars <- unique(c(group_var, if (fill_var != "none") fill_var))
-  
+
   bar_data <- data |>
     group_by(across(all_of(group_vars))) |>
     summarise(
       value = summary_fn(.data[[num_var]], na.rm = TRUE),
       .groups = "drop"
     )
-  
+
   p <- ggplot(
     bar_data,
     aes(
@@ -267,7 +291,7 @@ plot_summary_bar <- function(data, num_var, group_var, fill_var = "none",
       y = value
     )
   )
-  
+
   if (fill_var != "none") {
     p <- p +
       geom_col(aes(fill = .data[[fill_var]])) +
@@ -282,7 +306,7 @@ plot_summary_bar <- function(data, num_var, group_var, fill_var = "none",
   } else {
     p <- p + geom_col(fill = "steelblue")
   }
-  
+
   p +
     geom_hline(yintercept = 0, color = "gray40") +
     coord_flip() +
@@ -298,9 +322,8 @@ plot_summary_bar <- function(data, num_var, group_var, fill_var = "none",
 
 plot_numeric_boxplot <- function(data, num_var, cat_var, fill_var = "none",
                                  facet_var = "none") {
-  
   p <- ggplot(data, aes(x = .data[[cat_var]], y = .data[[num_var]]))
-  
+
   if (fill_var == "none") {
     p <- p +
       geom_boxplot(fill = "steelblue", outlier.alpha = 0.3)
@@ -309,14 +332,14 @@ plot_numeric_boxplot <- function(data, num_var, cat_var, fill_var = "none",
       geom_boxplot(aes(fill = .data[[fill_var]]), outlier.alpha = 0.3) +
       labs(fill = pretty_name(fill_var))
   }
-  
+
   # discount is a proportion, so show it as a percent
   if (num_var == "discount") {
     p <- p + scale_y_continuous(labels = scales::label_percent())
   }
-  
+
   p <- add_facet(p, facet_var)
-  
+
   p <- p +
     labs(
       title = paste(pretty_name(num_var), "by", pretty_name(cat_var)),
@@ -325,24 +348,23 @@ plot_numeric_boxplot <- function(data, num_var, cat_var, fill_var = "none",
     ) +
     theme_minimal(base_size = 12) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
+
   # the legend would just repeat the x-axis
   if (fill_var == cat_var) {
     p <- p + theme(legend.position = "none")
   }
-  
+
   p
 }
 
 # ------------------------- 4.Faceted Plot ---------------------------
 
 plot_shipping_time <- function(data, facet_var = "ship_mode", fill_var = "none") {
-  
   shipping_data <- data |>
     filter(!is.na(shipping_days), shipping_days >= 0)
-  
+
   p <- ggplot(shipping_data, aes(x = shipping_days))
-  
+
   if (fill_var == "none") {
     p <- p +
       geom_histogram(binwidth = 1, fill = "steelblue", color = "white")
@@ -351,9 +373,9 @@ plot_shipping_time <- function(data, facet_var = "ship_mode", fill_var = "none")
       geom_histogram(aes(fill = .data[[fill_var]]), binwidth = 1, color = "white") +
       labs(fill = pretty_name(fill_var))
   }
-  
+
   p <- add_facet(p, facet_var)
-  
+
   p +
     labs(
       title = paste("Shipping Duration by", pretty_name(facet_var)),
@@ -370,7 +392,6 @@ plot_shipping_time <- function(data, facet_var = "ship_mode", fill_var = "none")
 
 plot_ranking <- function(data, rank_var = "sub_category", metric = "profit",
                          n_top = 10) {
-  
   ranking_data <- data |>
     mutate(year = lubridate::year(order_date)) |>
     group_by(year, .data[[rank_var]]) |>
@@ -381,7 +402,7 @@ plot_ranking <- function(data, rank_var = "sub_category", metric = "profit",
     group_by(year) |>
     mutate(rank = min_rank(desc(total))) |>
     ungroup()
-  
+
   top_groups <- ranking_data |>
     group_by(.data[[rank_var]]) |>
     summarise(
@@ -390,11 +411,13 @@ plot_ranking <- function(data, rank_var = "sub_category", metric = "profit",
     ) |>
     slice_max(order_by = overall, n = n_top, with_ties = FALSE) |>
     pull(1)
-  
+
   ranking_data |>
     filter(.data[[rank_var]] %in% top_groups) |>
-    ggplot(aes(x = year, y = rank, color = .data[[rank_var]],
-               group = .data[[rank_var]])) +
+    ggplot(aes(
+      x = year, y = rank, color = .data[[rank_var]],
+      group = .data[[rank_var]]
+    )) +
     ggbump::geom_bump(linewidth = 1.2) +
     geom_point(size = 2.5) +
     scale_y_reverse(breaks = seq_len(max(ranking_data$rank))) +
@@ -414,14 +437,13 @@ plot_ranking <- function(data, rank_var = "sub_category", metric = "profit",
 
 plot_heatmap <- function(data, x_var = "discount_level", y_var = "sub_category",
                          num_var = "profit") {
-  
   heatmap_data <- data |>
     group_by(.data[[x_var]], .data[[y_var]]) |>
     summarise(
       avg_value = mean(.data[[num_var]], na.rm = TRUE),
       .groups = "drop"
     )
-  
+
   p <- ggplot(
     heatmap_data,
     aes(
@@ -431,7 +453,7 @@ plot_heatmap <- function(data, x_var = "discount_level", y_var = "sub_category",
     )
   ) +
     geom_tile(color = "white", linewidth = 0.4)
-  
+
   if (num_var == "profit") {
     # red / green only makes sense for profit, where 0 is the break-even point
     p <- p +
@@ -448,11 +470,13 @@ plot_heatmap <- function(data, x_var = "discount_level", y_var = "sub_category",
       scale_fill_viridis_c(name = paste("Average", pretty_name(num_var)))
     subtitle <- NULL
   }
-  
+
   p +
     labs(
-      title = paste("Average", pretty_name(num_var), "by", pretty_name(x_var),
-                    "and", pretty_name(y_var)),
+      title = paste(
+        "Average", pretty_name(num_var), "by", pretty_name(x_var),
+        "and", pretty_name(y_var)
+      ),
       subtitle = subtitle,
       x = pretty_name(x_var),
       y = pretty_name(y_var)
